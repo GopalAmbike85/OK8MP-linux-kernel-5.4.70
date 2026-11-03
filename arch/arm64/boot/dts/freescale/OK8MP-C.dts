@@ -78,12 +78,6 @@
 			gpios = <&gpio5 8 GPIO_ACTIVE_LOW>;
 			default-state = "on";
 		};
-		led2 {
-			linux,default-trigger = "timer";
-			led-pattern = <100 500>;
-			gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
-			default-state = "on";
-		};
 	};
 
 	keys {
@@ -397,7 +391,11 @@
 &eqos {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_eqos>;
-	reset-gpio = <&gpio5 5 GPIO_ACTIVE_LOW>;
+	/* CU044: KSZ9131 reset ENET_RESET# = GPIO2_IO06 (SD1_DATA4), active-low.
+	 * stmmac in this kernel only honours snps,reset-gpio (the old plain reset-gpio
+	 * was never read). delays = <pre-assert assert post-deassert> in us. */
+	snps,reset-gpio = <&gpio2 6 GPIO_ACTIVE_LOW>;
+	snps,reset-delays-us = <0 10000 150000>;
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy0>;
 	status = "okay";
@@ -407,12 +405,16 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		ethphy0: ethernet-phy@1 {
+		/* CU044: Microchip KSZ9131 (schematic p7), strap default address 7 */
+		ethphy0: ethernet-phy@7 {
 			compatible = "ethernet-phy-ieee802.3-c22";
-			reg = <1>;
+			reg = <7>;
 			eee-broken-1000t;
-			at803x,vddio-1p8v;
-			at803x,hibernate-disable;
+			/* ENET_INT = GPIO2_IO07 (SD1_DATA5), level-low. Left polled for first bring-up;
+			 * enable once link is verified:
+			 *   interrupt-parent = <&gpio2>;
+			 *   interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
+			 */
 		};
 	};
 };
@@ -424,7 +426,8 @@
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy1>;
 	fsl,magic-packet;
-	status = "okay";
+	/* CU044 has a single Ethernet (eqos); SAI1 pads (fec) are unconnected */
+	status = "disabled";
 
 	mdio {
 		#address-cells = <1>;
@@ -1140,6 +1143,7 @@
 			MX8MP_IOMUXC_HDMI_DDC_SDA__HDMIMIX_HDMI_SDA	0x400001c3
 			MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD		0x40000019
 			MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC		0x40000019
+			MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09		0x19
 		>;
 	};
 
@@ -1185,7 +1189,8 @@
 			MX8MP_IOMUXC_ENET_TD3__ENET_QOS_RGMII_TD3		0x1f
 			MX8MP_IOMUXC_ENET_TX_CTL__ENET_QOS_RGMII_TX_CTL	0x1f
 			MX8MP_IOMUXC_ENET_TXC__CCM_ENET_QOS_CLOCK_GENERATE_TX_CLK	0x1f
-			MX8MP_IOMUXC_SPDIF_EXT_CLK__GPIO5_IO05		0x19
+			MX8MP_IOMUXC_SD1_DATA4__GPIO2_IO06		0x19
+			MX8MP_IOMUXC_SD1_DATA5__GPIO2_IO07		0x1c0
 		>;
 	};
 
@@ -1237,7 +1242,6 @@
 	pinctrl_gpio_led: gpioledgrp {
 		fsl,pins = <
 			MX8MP_IOMUXC_ECSPI1_MISO__GPIO5_IO08    0x19
-			MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09     0x19
 		>;
 	};
 
@@ -1656,5 +1660,17 @@
 		gpios = <1 GPIO_ACTIVE_HIGH>;
 		output-low;
 		line-name = "spk_amp_sd";
+	};
+};
+
+/* CU044: Ethernet PHY supply enable, net ETH_PWR_CNRL = GPIO5_IO09 (ECSPI1_SS0), active-high.
+ * Schematic p6: drives T3A/T1A which switch +V3.3_ETH and +V1.8_ETH (+V1.2_ETH follows via T4)
+ * for the KSZ9131. Must be high before the PHY reset is released. */
+&gpio5 {
+	eth-phy-pwr-hog {
+		gpio-hog;
+		gpios = <9 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "eth_phy_pwr";
 	};
 };
