@@ -239,8 +239,8 @@
 		audio-routing =
 			"Headphone Jack", "LHP",
 			"Headphone Jack", "RHP",
-			"Ext Spk", "LSPK",
-			"Ext Spk", "RSPK",
+			"Ext Spk", "AUXOUT1",
+			"Ext Spk", "AUXOUT2",
 			"LMICN", "Mic Jack",
 			"LMICP", "Mic Jack",
 			"RMICN", "Mic Jack",
@@ -1645,4 +1645,16 @@
 
 &snvs_rtc {
 	/delete-node/ snvs-rtc-lp;
+};
+
+/* CU044 carrier: speaker-amp SHUTDOWN control = GPIO1_IO01 (net SHUTDOWN).
+ * Drive LOW to de-assert SHUTDOWN and enable the LM4670 amps on AUXOUT1/2.
+ * Verify LM4670 shutdown polarity against the datasheet. */
+&gpio1 {
+	spk-amp-sd-hog {
+		gpio-hog;
+		gpios = <1 GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "spk_amp_sd";
+	};
 };
