@@ -397,6 +397,7 @@
 	snps,reset-gpio = <&gpio2 6 GPIO_ACTIVE_LOW>;
 	snps,reset-delays-us = <0 10000 150000>;
 	phy-mode = "rgmii-id";
+	max-speed = <100>;	/* CU044: 1G does not train (MDI pairs C/D), temporary */
 	phy-handle = <&ethphy0>;
 	status = "okay";
 
@@ -410,6 +411,9 @@
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <7>;
 			eee-broken-1000t;
+			/* CU044: KSZ9131 power-up TX clock skew (0 ps) corrupts TX frames. Board sweep 04-11-2026:
+			 * reg value 0-9 fail, 10-31 (+300..+2400 ps) work. 1800 ps = mid-range, ~RGMII-ID 2 ns delay. */
+			txc-skew-psec = <1800>;
 			/* ENET_INT = GPIO2_IO07 (SD1_DATA5), level-low. Left polled for first bring-up;
 			 * enable once link is verified:
 			 *   interrupt-parent = <&gpio2>;
