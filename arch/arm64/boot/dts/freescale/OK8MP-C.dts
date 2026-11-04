@@ -109,6 +109,7 @@
 		regulator-max-microvolt = <5000000>;
 		gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+		status = "disabled";	/* CU044: GPIO1_IO14 is the LEFT key net, VBUS is not GPIO controlled */
 	};
 
 	reg_usdhc2_vmmc: regulator-usdhc2 {
@@ -144,6 +145,7 @@
 		pinctrl-0 = <&pinctrl_typec_mux>;
 		switch-gpios = <&gpio4 20 GPIO_ACTIVE_LOW>;
 		orientation-switch;
+		status = "disabled";	/* CU044: no Type-C */
 
 		port {
 			usb3_data_ss: endpoint {
@@ -644,7 +646,7 @@
 		vbus-supply = <&reg_usb1_host_vbus>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <19 IRQ_TYPE_LEVEL_LOW>;
-		status = "okay";
+		status = "disabled";	/* CU044: not fitted */
 			
 		port {
 			typec_dr_sw: endpoint {
@@ -1052,7 +1054,7 @@
 };
 
 &usb3_phy0 {
-	vbus-power-supply = <&fusb302>;
+	/* CU044: no FUSB302 Type-C controller, J18 is a plain Type-A socket (VBUS from the carrier 5V switch) */
 	fsl,phy-tx-vref-tune = <6>;
 	fsl,phy-tx-rise-tune = <0>;
 	fsl,phy-tx-preemp-amp-tune = <3>;
@@ -1067,11 +1069,9 @@
 };
 
 &usb_dwc3_0 {
-	dr_mode = "otg";
-	hnp-disable;
-	srp-disable;
-	adp-disable;
-	usb-role-switch;
+	/* CU044: J18 Type-A (SoM USB1) is host only. J18 has only VCC/D-/D+/GND, so limit to USB 2.0 */
+	dr_mode = "host";
+	maximum-speed = "high-speed";
 	status = "okay";
 
 	port {
