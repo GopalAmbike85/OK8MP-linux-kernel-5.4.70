@@ -229,7 +229,7 @@
 		cpu-dai = <&sai3>;
 		audio-codec = <&codec_nau8822>;
 		asrc-controller = <&easrc>;
-		codec-master;
+		/* codec-master; -- test 05-11-2026: SAI3 as clock master, codec slave */
 		hp-det-gpios = <&gpio4 28 0>;
 		mic-det-gpios = <&gpio4 28 0>;
 		audio-routing =
@@ -360,8 +360,8 @@
 };
 
 &pwm1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm1>;
+	/* CU044: pad GPIO1_IO01 is the speaker-amp SHUTDOWN net, not the DSI backlight PWM.
+	 * No pinctrl here, so PWM1 does not take the pad away from the GPIO hog. */
 	status = "okay";
 	assigned-clocks = <&clk IMX8MP_CLK_PWM1>;
 	assigned-clock-parents = <&clk IMX8MP_CLK_24M>;
@@ -1148,6 +1148,7 @@
 			MX8MP_IOMUXC_HDMI_HPD__HDMIMIX_HDMI_HPD		0x40000019
 			MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC		0x40000019
 			MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09		0x19
+			MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01		0x19
 		>;
 	};
 
@@ -1655,14 +1656,15 @@
 	/delete-node/ snvs-rtc-lp;
 };
 
-/* CU044 carrier: speaker-amp SHUTDOWN control = GPIO1_IO01 (net SHUTDOWN).
- * Drive LOW to de-assert SHUTDOWN and enable the LM4670 amps on AUXOUT1/2.
- * Verify LM4670 shutdown polarity against the datasheet. */
+/* CU044 carrier: speaker-amp enable = GPIO1_IO01 (net SHUTDOWN), schematic p12.
+ * Q8 is an emitter follower (SD pin of both LM4670 comes from its emitter): GPIO HIGH = amps ON,
+ * LOW = amps off. Board-verified 05-11-2026 (tone heard). The pad must be muxed as GPIO (pinctrl_hog),
+ * not PWM1_OUT (the Forlinx default for the DSI backlight). */
 &gpio1 {
 	spk-amp-sd-hog {
 		gpio-hog;
 		gpios = <1 GPIO_ACTIVE_HIGH>;
-		output-low;
+		output-high;
 		line-name = "spk_amp_sd";
 	};
 };
