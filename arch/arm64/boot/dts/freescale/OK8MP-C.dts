@@ -369,8 +369,8 @@
 };
 
 &pwm2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_pwm2>;
+	/* CU044: pad GPIO1_IO11 (SoM LVDS_PWM) is the keypad net COL-3 here; the CU044 backlight PWM (BL-PWM, J4)
+	 * is on SPDIF_EXT_CLK. No pinctrl, so PWM2 does not take the pad away from GPIO use. */
 	status = "okay";
 };
 
@@ -1149,6 +1149,7 @@
 			MX8MP_IOMUXC_HDMI_CEC__HDMIMIX_HDMI_CEC		0x40000019
 			MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09		0x19
 			MX8MP_IOMUXC_GPIO1_IO01__GPIO1_IO01		0x19
+			MX8MP_IOMUXC_GPIO1_IO11__GPIO1_IO11		0x19
 		>;
 	};
 
