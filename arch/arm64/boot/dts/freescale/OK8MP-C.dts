@@ -12,6 +12,17 @@
 	model = "Forlinx OK8MPlus-C board";
 	compatible = "forlinx,ok8mp-c", "fsl,imx8mp-evk", "fsl,imx8mp";
 
+	aliases {
+		/* Without an explicit alias for BOTH devices, snvs_rtc (no backup battery) probes
+		 * first and claims id 0 by plain allocation order before this alias is even checked,
+		 * so rtc0 = &rtc_pcf85263 alone was not enough (seen on the board 12-11-2026: it still
+		 * came up as rtc1). Reserve id 1 for snvs_rtc explicitly so id 0 stays free for the
+		 * battery-backed PCF85263, which CONFIG_RTC_HCTOSYS_DEVICE="rtc0" then uses at boot.
+		 */
+		rtc0 = &rtc_pcf85263;
+		rtc1 = &snvs_rtc;
+	};
+
 	reserved-memory {
 		#address-cells = <2>;
 		#size-cells = <2>;
@@ -613,6 +624,11 @@
 		};
 	};
 
+	rtc_pcf85263: pcf85263@51 {
+		compatible = "nxp,pcf85263";
+		reg = <0x51>;
+	};
+
 	basler_0: basler_camera_vvcam@36 {
 	    compatible = "basler,basler-camera-vvcam", "basler-camera-vvcam";
 	    reg = <0x36>;
@@ -696,19 +712,6 @@
 		wlf,shared-lrclk;
 		SPKVDD1-supply = <&reg_audio_pwr>;
 	};
-
-	pcf8563: pcf8563@51 {
-	    compatible = "nxp,pcf8563";
-	    reg = <0x51>;
-	    #clock-cells = <0>;
-	    clock-output-names="pcf8563-clkout";
-	};
-
-	rx8010:rx8010@32 {
-            compatible = "epson,rx8010";
-            reg = <0x32>;
-            status = "okay";
-    };
 
 	touchscreen@14 {
 		compatible = "goodix,gt928";
