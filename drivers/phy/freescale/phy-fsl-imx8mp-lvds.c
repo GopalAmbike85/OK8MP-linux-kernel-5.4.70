@@ -100,6 +100,14 @@ static int imx8mp_lvds_phy_power_on(struct phy *phy)
 	mutex_lock(&priv->lock);
 	val = phy_read(phy, LVDS_CTRL);
 	bg_en = !!(val & BG_EN);
+	/*
+	 * CU044: the R185FHB-N82 panel on the CU044 J3 cable only locks with the default drive
+	 * (CC_ADJ 0, no pre-emphasis: LVDS_CTRL 0x7, as read on the working 6.1.36 build).
+	 * U-Boot leaves CC_ADJ 2 + pre-emphasis 3 (0x1075) and the panel shows its self-test
+	 * pattern. With FORLINX_LOGO_KEEP the init above never rewrites LVDS_CTRL, so clear the
+	 * drive fields on every power-on. Board-verified with a live write on 12-11-2026.
+	 */
+	val &= ~(CC_ADJ_MASK | PRE_EMPH_ADJ_MASK | PRE_EMPH_EN);
 	val |= BG_EN;
 	phy_write(phy, LVDS_CTRL, val);
 	mutex_unlock(&priv->lock);
