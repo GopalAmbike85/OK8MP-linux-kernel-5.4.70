@@ -264,9 +264,18 @@
 		cpu-dai = <&xcvr>;
 	};
 
+	/* CU044: backlight on J4 (R185FHB-N82 LED driver board, VLED 12 V via J13 3-2), schematic sheets 5 and 13.
+	 * BL-PWM = SPDIF_RX/PWM2_OUT (J4 pin 2, pad set in &pwm2), BL-EN = SPDIF_EXT_CLK/GPIO5_IO05 (J4 pin 1),
+	 * both active high. Live pin-mux test on 12-11-2026 lit the backlight with this PWM (50 us, 20 kHz).
+	 * 200 ms on/off delays as in the 6.1.36 CU044 DT; not a datasheet requirement. */
 	lvds_backlight: lvds_backlight {
 		compatible = "pwm-backlight";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_lvds_bl_en>;
 		pwms = <&pwm2 0 50000>;
+		enable-gpios = <&gpio5 5 GPIO_ACTIVE_HIGH>;
+		post-pwm-on-delay-ms = <200>;
+		pwm-off-delay-ms = <200>;
 		status = "okay";
 		is-forlinx; //if not forlinx backlight remove this
 
@@ -380,8 +389,10 @@
 };
 
 &pwm2 {
-	/* CU044: pad GPIO1_IO11 (SoM LVDS_PWM) is the keypad net COL-3 here; the CU044 backlight PWM (BL-PWM, J4)
-	 * is on SPDIF_EXT_CLK. No pinctrl, so PWM2 does not take the pad away from GPIO use. */
+	/* CU044: PWM2_OUT drives BL-PWM (J4 pin 2) on pad SPDIF_RX (pinctrl_pwm2). The Forlinx pad GPIO1_IO11
+	 * (SoM LVDS_PWM) stays the keypad net COL-3, muxed as GPIO in pinctrl_hog. */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm2>;
 	status = "okay";
 };
 
@@ -804,28 +815,35 @@
 };
 
 /{
+	/* CU044: Hongkong Lestar R185FHB-N82, 18.5" 1920x1080, dual-port LVDS on J3, LCD_VCC 5 V (J21 on 3-4).
+	 * Panel ODD port <- LVDS0 (LVDSA), EVEN port <- LVDS1 (LVDSB): see fsl,dual-channel in &ldb.
+	 * Timing = 6.1.36 CU044 DT v2 values (2240 x 1115 total, 148.5 MHz = 74.25 MHz per port, 59.46 Hz),
+	 * reported working on this panel. Fallback if no picture: R185FHB-N82 Table 8 typical = CEA 1080p
+	 * (hback-porch 148, vback-porch 36, 2200 x 1125), same clock. Panel is DE-only; bit mapping vesa-24.
+	 * No enable-gpio: CU044 has no LVDS power switch (LCD_VCC set by J21) and GPIO1_IO13 is keypad COL-1. */
 	lvds0_panel {
 		compatible = "forlinx,panel", "panel-lvds";
 		backlight = <&lvds_backlight>;
-        pinctrl-0 = <&pinctrl_lvds_panel_en>;
-        enable-gpio = <&gpio1 13 GPIO_ACTIVE_HIGH>;
         panel-type = "lvds";
 
-		width-mm = <218>;
-		height-mm = <138>;
+		width-mm = <409>;
+		height-mm = <230>;
 		data-mapping = "vesa-24";
         bmp-logo = "logo-1280x800.bmp";
 
 		panel-timing {
-			hback-porch     = <10>;
-			hfront-porch    = <140>;
-			hactive                 = <1280>;
-			hsync-len               = <10>;
-			vback-porch     = <1>;
-			vfront-porch    = <2>;
-			vactive         = <800>;
-			vsync-len       = <20>;
-			clock-frequency = <72000000>;
+			clock-frequency	= <148500000>;
+			hactive		= <1920>;
+			hfront-porch	= <88>;
+			hsync-len	= <44>;
+			hback-porch	= <188>;	/* H total 2240 */
+			vactive		= <1080>;
+			vfront-porch	= <4>;
+			vsync-len	= <5>;
+			vback-porch	= <26>;		/* V total 1115 */
+			hsync-active	= <1>;
+			vsync-active	= <1>;
+			de-active	= <1>;
 		};
 
 
@@ -840,6 +858,9 @@
 
 &ldb {
 	status = "okay";
+	/* CU044: R185FHB-N82 is a 2-port panel: odd/even pixel split over LVDS0 + LVDS1, not channel duplicate.
+	 * The driver then also powers the channel 1 PHY (ldb_phy2 from imx8mp.dtsi). */
+	fsl,dual-channel;
 
 	lvds-channel@0 {
 		fsl,data-mapping = "spwg";
@@ -1167,7 +1188,13 @@
 
 	pinctrl_pwm2: pwm2grp {
 		fsl,pins = <
-			MX8MP_IOMUXC_GPIO1_IO11__PWM2_OUT	0x116
+			MX8MP_IOMUXC_SPDIF_RX__PWM2_OUT		0x116	/* CU044 BL-PWM, J4 pin 2 */
+		>;
+	};
+
+	pinctrl_lvds_bl_en: lvdsblengrp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SPDIF_EXT_CLK__GPIO5_IO05	0x116	/* CU044 BL-EN, J4 pin 1, pull-down */
 		>;
 	};
 
@@ -1222,7 +1249,7 @@
 			MX8MP_IOMUXC_SAI1_TXD3__ENET1_RGMII_TD3		0x1f
 			MX8MP_IOMUXC_SAI1_TXD4__ENET1_RGMII_TX_CTL	0x1f
 			MX8MP_IOMUXC_SAI1_TXD5__ENET1_RGMII_TXC		0x1f
-			MX8MP_IOMUXC_SPDIF_RX__GPIO5_IO04		0x19
+			/* MX8MP_IOMUXC_SPDIF_RX__GPIO5_IO04 0x19 - CU044: pad is BL-PWM (fec is disabled) */
 		>;
 	};
 
