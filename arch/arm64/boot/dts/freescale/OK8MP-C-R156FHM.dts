@@ -1,0 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * CU044 with the Hongkong Lestar R156FHM-N11H 15.6" 1920x1080 2-port LVDS panel (40-pin I-PEX 20455).
+ * Same board as OK8MP-C.dts (R185FHB-N82 18.5"); only the panel-specific values differ.
+ *
+ * HARDWARE BEFORE USE: LCD_VCC must be 3.3 V (J21 on 1-2). Datasheet absolute maximum is 4.0 V;
+ * the R185FHB setting (J21 on 3-4, 5 V) can damage this panel. LED_VCC 12 V (J13 3-2) is unchanged.
+ *
+ * Timing: the base 2240 x 1115 at 148.5 MHz already matches the datasheet typical values
+ * (per port TH 1120, TV 1115, 74.25 MHz within 67-83 MHz), so it is not overridden.
+ */
+
+#include "OK8MP-C.dts"
+
+/* Datasheet note 1: TI LP8866 hybrid dimming with a 19531 Hz PWM (51200 ns). */
+&lvds_backlight {
+	pwms = <&pwm2 0 51200>;
+};
+
+/ {
+	lvds0_panel {
+		width-mm = <344>;	/* active area 344.16 x 193.59 mm */
+		height-mm = <194>;
+	};
+};
