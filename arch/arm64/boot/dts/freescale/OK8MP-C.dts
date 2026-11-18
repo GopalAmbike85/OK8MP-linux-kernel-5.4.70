@@ -1053,11 +1053,15 @@
 };
 
 &uart1 { /* BT */
+	/* fsl,uart-has-rtscts removed: its CTS/RTS pads (see pinctrl_uart1) are freed for
+	 * &uart3's real pins (CN2) instead. No RTS/CTS wiring for UART1 exists on this carrier.
+	 * assigned-clocks/assigned-clock-parents (80 MHz) also removed: board-verified root cause
+	 * of "TX works, RX never receives anything" on &uart3 (J1/UART1 showed the identical
+	 * symptom with the same 80 MHz override); the working console UART2 has no such override
+	 * and defaults to 24 MHz.
+	 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	assigned-clocks = <&clk IMX8MP_CLK_UART1>;
-	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_80M>;
-	fsl,uart-has-rtscts;
 	status = "okay";
 };
 
@@ -1072,11 +1076,15 @@
 	/* CU044: debug connector CN2 (4-pin: +3V3/RXD/TXD/GND) has no RTS or CTS lines at all, and
 	 * pinctrl_uart3 only muxes RX/TX. With flow control left on, the UART waits forever for a
 	 * CTS signal that is wired to nothing and never actually transmits. Drop it. (board-verified)
+	 *
+	 * Also dropped: assigned-clocks/assigned-clock-parents (80 MHz root clock). TX worked with
+	 * the real native pads but RX still received nothing; the console UART2 (which works for
+	 * RX) has no clock override at all and defaults to 24 MHz. Testing whether the 80 MHz root
+	 * clock itself - not pin selection - was the real RX fault, since UART1 (also overridden to
+	 * 80 MHz, also a plain native-pad UART) showed the identical symptom.
 	 */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
-	assigned-clocks = <&clk IMX8MP_CLK_UART3>;
-	assigned-clock-parents = <&clk IMX8MP_SYS_PLL1_80M>;
 	status = "okay";
 };
 
@@ -1391,11 +1399,14 @@
 	};
 
 	pinctrl_uart1: uart1grp {
+		/* CU044: the CTS/RTS entries here used to claim the pads that are actually CN2's
+		 * UART3_RXD/UART3_TXD (confirmed by schematic net labels) - freed for &uart3's
+		 * pinctrl_uart3 group instead. Those net names ("UART1_CTS"/"UART1_RTS") never
+		 * appeared anywhere in the schematic either, so nothing on the carrier used them.
+		 */
 		fsl,pins = <
 			MX8MP_IOMUXC_UART1_RXD__UART1_DCE_RX	0x140
 			MX8MP_IOMUXC_UART1_TXD__UART1_DCE_TX	0x140
-			MX8MP_IOMUXC_UART3_RXD__UART1_DCE_CTS	0x140
-			MX8MP_IOMUXC_UART3_TXD__UART1_DCE_RTS	0x140
 		>;
 	};
 
@@ -1407,9 +1418,16 @@
 	};
 
 	pinctrl_uart3: uart3grp {
+		/* CU044: CN2 (debug connector) is wired to the NATIVE UART3_RXD/UART3_TXD pads
+		 * (confirmed on the schematic: P1 pins 7/9 show matching inner+outer "UART3_RXD"/
+		 * "UART3_TXD" labels), not to ECSPI1_SCLK/MOSI (no outer label at all on the
+		 * schematic - not routed anywhere on this carrier). The previous version of this
+		 * group used ECSPI1_SCLK/MOSI, which explains the old RX-never-receives symptom:
+		 * TX genuinely shifted bits out, just onto a pad connected to nothing.
+		 */
 		fsl,pins = <
-			MX8MP_IOMUXC_ECSPI1_SCLK__UART3_DCE_RX		0x140
-			MX8MP_IOMUXC_ECSPI1_MOSI__UART3_DCE_TX		0x140
+			MX8MP_IOMUXC_UART3_RXD__UART3_DCE_RX		0x140
+			MX8MP_IOMUXC_UART3_TXD__UART3_DCE_TX		0x140
 		>;
 	};
 
